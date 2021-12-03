@@ -1,0 +1,15 @@
+[package]
+name = "sedboy"
+authors = ["Vinícius Rodrigues Miguel <vrmiguel99@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nom = "7.1.0"
+regex = "1.5.4"
+tokio = { version =  "1.14.0", features = ["rt-multi-thread", "macros"] }
+anyhow = "1.0.51"
+futures = "0.3.18"
+telegram-bot = { git = "https://github.com/telegram-rs/telegram-bot", rev = "65ad5cf" }
