@@ -1,6 +1,7 @@
 use std::env;
 
 use anyhow::{bail, Context};
+use chrono::{Duration, NaiveDateTime, Utc};
 use futures::StreamExt;
 use telegram_bot::CanReplySendMessage;
 use telegram_bot::{Api, Message, MessageKind, MessageOrChannelPost, Update};
@@ -61,27 +62,55 @@ async fn handle_reply(
     Ok(())
 }
 
+fn is_message_old(msg: &Message) -> bool {
+
+    fn elapsed_time_since(previous: NaiveDateTime) -> Duration {
+        let current_time = Utc::now().naive_utc();
+        current_time.signed_duration_since(previous)
+    }
+
+    let date = NaiveDateTime::from_timestamp(msg.date, 0);
+
+    let elapsed = elapsed_time_since(date);
+
+    elapsed.num_seconds() > 5
+}
+
 async fn handle_message<'a>(api: &Api, msg: &'a Message) -> anyhow::Result<()> {
+    // Check if the message is too old
+    if is_message_old(msg) {
+        return Ok(())
+    }
+
+    println!("processing a message from {}", msg.from.id);
+
     let sed_command = match msg.text().map(parse_sed_command) {
         Some(Ok((_, sed_command))) => sed_command,
         // Message is not a text message or is a invalid sed command
         _ => return Ok(()),
     };
 
+    print!("it is a sed command!");
+
     match &msg.reply_to_message {
         // If the current message is replying to something, we'll try to apply our SedCommand in the message being replied to
         Some(message_or_channel_post) => {
+            println!(".. and it is a reply!");
             handle_reply(api, message_or_channel_post, sed_command).await
         }
         // If the current message isn't replying to anything, we'll try to apply our SedCommand to the previously sent message
-        None => todo!(),
+        // unimplemented!
+        None => {
+            println!(".. and it is unimplemented :c");
+            return Ok(())
+        },
     }
 }
 
 #[inline(always)]
-async fn handle_update(api: &Api, update: Update) -> anyhow::Result<()> {
+async fn handle_update(api: Api, update: Update) -> anyhow::Result<()> {
     match update.kind {
-        telegram_bot::UpdateKind::Message(msg) => handle_message(api, &msg)
+        telegram_bot::UpdateKind::Message(msg) => handle_message(&api, &msg)
             .await
             .with_context(|| "Failed to handle a message!"),
         telegram_bot::UpdateKind::Error(err) => bail!(err),
